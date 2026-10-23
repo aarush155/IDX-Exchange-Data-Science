@@ -1,0 +1,23 @@
+1. Train the models
+Add this code to your notebook after your train/test split and baseline model. Replace X_train, X_test, y_train, and y_test if your notebook uses different variable names.
+from sklearn.tree import DecisionTreeRegressordt_predictions = decision_tree.predict(X_test)dt_r2 = r2_score(y_test, dt_predictions)# Random Forest Regressorrandom_forest = Pipeline([    ("preprocessor", clone(preprocessor)),    ("model", RandomForestRegressor(        n_estimators=100, max_depth=10, random_state=42, n_jobs=-1    ))])random_forest.fit(X_train, y_train)rf_predictions = random_forest.predict(X_test)rf_r2 = r2_score(y_test, rf_predictions)# Baseline model: predict the training-set meanbaseline = DummyRegressor(strategy="mean")baseline.fit(X_train, y_train)baseline_predictions = baseline.predict(X_test)baseline_r2 = r2_score(y_test, baseline_predictions)# Compare test R² scoresresults = pd.DataFrame({    "Model": ["Baseline", "Decision Tree", "Random Forest"],    "Test R²": [baseline_r2, dt_r2, rf_r2]})results
+
+
+
+Important: Make sure X_train excludes the target column and any columns that would reveal the answer, such as the actual closing price if you're predicting it. Exclude identifying fields such as agent emails and listing IDs, too.
+2. Compare the results
+Interpret your output using these guidelines:
+- Baseline: Usually has an \(R^2\) near zero because it predicts the average target value for every listing.
+- Decision Tree: Can learn nonlinear relationships and interactions between features. However, it can overfit the training data.
+- Random Forest: Combines many decision trees, often improving generalization and reducing overfitting. It is less interpretable and can require more computation.
+A higher test \(R^2\) indicates a better fit on unseen data. A negative \(R^2\) means the model performs worse than predicting the test-set mean.
+3. Document model behavior
+You can use this explanation in your assignment:
+
+Decision Tree Regressor: The decision tree can capture nonlinear patterns and is relatively easy to interpret. However, it may overfit the training data and produce less accurate predictions on unseen listings.
+
+Random Forest Regressor: The random forest combines multiple decision trees to improve prediction stability and reduce overfitting. It often performs better than a single tree, although it requires more computation and is harder to interpret.
+
+Comparison with baseline: Compare the three test \(R^2\) scores to determine whether the models improve on the baseline. The model with the highest test \(R^2\) performs best among these three on the test set.
+
+Run the code and share the resulting three scores if you want help writing a conclusion based on your actual results.
