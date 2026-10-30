@@ -92,8 +92,8 @@ One modeling tip: Compare your model's performance with and without these featur
 6. Compare against your original models
 Your final comparison should look something like this:
 Model	Original features R²	Updated features R²
-Decision Tree	Your 0.45      0.89
-Random Forest	Your 0.53	0.76
+Decision Tree	Your 0.88      0.89
+Random Forest	Your 0.73	0.76
 
 The scores above need to come from your actual model runs; don't fill them in with estimates.
 
