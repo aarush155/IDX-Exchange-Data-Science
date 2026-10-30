@@ -1,1 +1,116 @@
+Week 6 Goals:
+Example of sample features you can engineer: bed/bath ratio, age of property
+in years
 
+import pandas as pd
+df = pd.read_csv("file name")
+df
+df["BedBathRatio"] = df["BedroomsTotal"] / df["BathroomsTotalInteger"]
+
+df["PropertyAge"] = 2024 - df["YearBuilt"]
+
+df["PricePerSqFt"] = df["ListPrice"] / df["LivingArea"]
+
+df["LivingAreaPerBedroom"] = df["LivingArea"] / df["BedroomsTotal"]
+
+df["HasGarage"] = (df["GarageSpaces"] > 0).astype(int)
+
+df["LotToHomeRatio"] = df["LotSizeSquareFeet"] / df["LivingArea"]
+
+Engineered feature	Calculation	Purpose
+Bed/Bath Ratio	BedroomsTotal / BathroomsTotalInteger	Measures bedrooms relative to bathrooms
+Property Age	2024 - YearBuilt	Measures how old the property is
+Price per Sq. Ft.	ListPrice / LivingArea	Measures cost per square foot
+Living Area per Bedroom	LivingArea / BedroomsTotal	Measures space per bedroom
+Garage Availability	GarageSpaces > 0	Indicates whether the property has a garage
+Lot-to-Home Ratio	LotSizeSquareFeet / LivingArea	Compares land size to home size
+
+Important: Handle missing values and zero denominators before using these features in your model. Also, use the appropriate listing year when calculating property age rather than assuming every property was listed in 2024.
+
+
+This feature would assign each property to its California school district based on its latitude and longitude. Unlike a city or ZIP-code feature, it can capture more localized geographic differences that may help explain property prices.
+
+You can do this with a spatial join using GeoPandas: convert each property's coordinates into a point, load the school district boundary file, and join each point to the district polygon containing it.
+
+One important detail about this particular dataset: the California boundary layer combines elementary, high-school, and unified school districts. Their boundaries can overlap because they serve different grade levels. So a property may correctly match more than one district. 
+Data.CA.gov+1
+
+
+Your property file already has Latitude and Longitude, so you can use those directly. It also has existing district-name columns, but the spatial join can independently assign districts from the official boundary polygons.
+Python implementation
+If your property data is already loaded into df, try this:
+
+Code is import geopandas as gpd
+import pandas as pd
+
+# 1. Load California school district boundaries
+url = "https://services3.arcgis.com/fdvHcZVgB2QSRNkL/ArcGIS/rest/services/DisrictAreasCOE2425/FeatureServer/4/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson"
+
+districts = gpd.read_file(url)
+
+# 2. Create geographic points for each property
+properties = df.copy().reset_index(drop=True)
+
+properties["Latitude"] = pd.to_numeric(properties["Latitude"], errors="coerce")
+properties["Longitude"] = pd.to_numeric(properties["Longitude"], errors="coerce")
+
+properties_gdf = gpd.GeoDataFrame(
+    properties,
+    geometry=gpd.points_from_xy(
+        properties["Longitude"],
+        properties["Latitude"]
+    ),
+    crs="EPSG:4326"
+)
+
+# 3. Make sure both datasets use the same coordinate system
+districts = districts.to_crs(properties_gdf.crs)
+
+# Check the available district types
+print(districts["DistrictType"].unique())
+
+What features will you get?
+Feature	Description
+ElementaryDistrict	Elementary school district containing the property
+HighSchoolDistrict	High school district containing the property
+UnifiedDistrict	Unified school district containing the property
+
+Important: Check the output of districts["DistrictType"].unique() to make sure the category names match the filtering code. Also check for missing district assignments, since some coordinates may fall outside a mapped boundary.
+Why this helps your model
+School district membership can act as a geographic proxy for differences in local education environments. It may help explain differences in housing prices between properties with otherwise similar characteristics. It does not directly measure school quality, though.
+
+The official dataset is maintained by the California Department of Education and provides 2024–25 boundaries. 
+Data.CA.gov+1
+
+
+Dataset: California School District Areas 2024–25 shapefile.
+
+One modeling tip: Compare your model's performance with and without these features to see whether school district information actually improves predictions.
+
+
+
+6. Compare against your original models
+Your final comparison should look something like this:
+Model	Original features R²	Updated features R²
+Decision Tree	Your 0.45      0.89
+Random Forest	Your 0.53	0.76
+
+The scores above need to come from your actual model runs; don't fill them in with estimates.
+
+What to look for:
+- Higher R² means the model explains more variation in property prices.
+- Lower MAE means predictions are closer to actual prices.
+- If the updated models perform better, the engineered features and school district information may be adding useful predictive information.
+Important: Use the same train/test split for the original and updated models. Also, don't include PricePerSqFt when predicting ListPrice, because it is calculated using the target itself. If predicting ClosePrice, filter to properties with a recorded sale price and use ClosePrice as the target instead.
+
+The preprocessing pipeline also ensures categorical encoding and imputation are learned from training data rather than the test set, helping prevent data leakage. 
+GitHub+2
+
+
+If you share your original model-training code, I can modify it directly so the new models match your existing project rather than starting from scratch.
+
+I used 749 residential listings, with 599 for training and 150 for testing.
+Model	Test R²	Mean absolute error
+Baseline	-0.008	$634,637
+Decision Tree	-0.456	$392,283
+Random Forest	0.692	$252,192
